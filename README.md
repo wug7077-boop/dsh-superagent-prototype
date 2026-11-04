@@ -1,40 +1,34 @@
-# dsh-superagent
+# dsh-superagent 整合仓库
 
-> **Research prototype for reference only, not an official DeepSeek product.** This code grew out of our team's day-to-day development work, with much of the engineering done by coding agents. Treat it as research code, not production-ready software. It may still contain bugs, and its coding style and engineering practices may be inconsistent. Review and adapt it before using it in your own environment.
->
-> We have adapted it for publication, so it is not identical to our internal version or the implementation described in *Exploring Super-agent Design: Towards a More Autonomous Agent System*. Some designs discussed in the article are directions for future development and are not implemented in this prototype.
+> 基于 [deepseek-ai/dsh-superagent-prototype](https://github.com/deepseek-ai/dsh-superagent-prototype)（DSH 的研究原型 bundle）做二次开发的**隔离式整合仓库**：官方源原样放一个文件夹，自己的改造以补丁与扩展的形式独立存在，升级零合并冲突。
 
-dsh-superagent is a proactive coding agent for one GitHub repository, packaged as a bundle for [DeepSeek Harness](https://www.deepseek.com/en/harness/). It listens to GitHub and, optionally, Feishu. When someone allowed asks the agent for work, it opens a work item, works on it in its own agent session and directory, and answers in the original conversation, for example with a pull request. A web panel shows what needs a person.
+## 布局
 
-It is also a way of working with an agent: **take as little human attention as possible, and give as much value as possible.** An agent that can act for a whole team can also waste a whole team's attention, so it acts only when asked or when a rule the team wrote allows it, and speaks only when someone must act or can use a result. [docs/000-philosophy.md](docs/000-philosophy.md) explains the principle and what it asks of the operator.
+```
+├── upstream/       官方源项目原样（git subtree 导入，含官方提交历史；提交永远保持纯净）
+├── patches/        对官方已有文件的修改（一个主题一个补丁）——见 patches/README.md
+├── extensions/     纯新增文件（管理脚本、方案文档、未来的插件模块），零冲突
+├── scripts/        补丁与自测工具（patches.mjs / check.mjs）
+└── .github/        CI 门禁（Markdown 检查 + 补丁健康检查）与贡献模板
+```
 
-## Setup
+## 日常使用
 
-Setup has many steps, so an agent does it with you. Ask your coding agent:
+```bash
+node scripts/patches.mjs status   # 查看补丁状态（applied / not applied / broken）
+node scripts/patches.mjs apply    # 应用全部补丁到 upstream/ 工作树（常驻；提交时不提交 upstream/ 改动）
+node scripts/patches.mjs revert   # 还原全部补丁（升级前执行）
+node scripts/check.mjs            # 自测：确保补丁应用后在 upstream/ 跑 pnpm check
+```
 
-> Read SETUP.md in this repository and set up dsh-superagent with me.
+首次使用或升级后：`pnpm -C upstream install --frozen-lockfile`。
 
-It asks one short question at a time, shows the full plan once, and then installs and configures everything. [SETUP.md](SETUP.md) is what it follows.
+服务管理脚本在 `extensions/scripts/`（`dsh-superagent.mjs` / `.cmd`，跨平台），官方原版 Unix 脚本在 `upstream/scripts/`。
 
-## Documentation
+## 核心纪律
 
-Read the numbered documents in order; each builds only on the ones before it.
+1. **新增功能**放 `extensions/`（或做成 plugin / bundle 模块加 `cordis.patch.yml` 条目），不动官方文件；
+2. **修改官方文件**只能通过 `patches/` 新增补丁——`upstream/` 的任何改动都不进 git 提交（CI 门禁拦截）;
+3. **升级**按 [UPGRADE.md](UPGRADE.md) 流程执行；某个补丁打不上会红，重写该补丁即可，永远不会有合并冲突。
 
-- [000 Philosophy](docs/000-philosophy.md)
-- [001 Domain model](docs/001-domain.md)
-- [002 Authorization](docs/002-authorization.md)
-- [003 Execution](docs/003-execution.md)
-- [004 Prompts](docs/004-prompts.md)
-- [005 Panel](docs/005-panel.md)
-- [006 Deployment](docs/006-deployment.md): manual setup, configuration, upgrades and troubleshooting
-- [007 Architecture](docs/007-architecture.md)
-- [008 Cookbook](docs/008-cookbook.md): adding a Source
-- [009 Context management plan](docs/009-context-management-plan.md): proposed improvements, not yet implemented
-
-## Development
-
-`pnpm check` runs the typecheck, the tests and the build.
-
-## License
-
-[MIT](LICENSE)
+贡献流程、commit 规范与 PR 约定见 [CONTRIBUTING.md](CONTRIBUTING.md)；官方项目自身的文档在 [upstream/README.md](upstream/README.md) 与 `upstream/docs/`。

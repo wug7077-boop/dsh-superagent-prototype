@@ -25,7 +25,10 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 
-const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
+// This copy lives in extensions/scripts/ of the integration repo; the DSH package itself is in upstream/.
+// ROOT stays the package root (artifacts, service cwd), REPO_ROOT the integration repo the script ships in.
+const REPO_ROOT = resolve(fileURLToPath(new URL('../..', import.meta.url)))
+const ROOT = join(REPO_ROOT, 'upstream')
 const ARTIFACTS = join(ROOT, '.artifacts')
 const CONTROL = join(ARTIFACTS, 'control')
 const KEEP_LOGS = 20
@@ -77,7 +80,7 @@ function serviceEnv() {
 /** Resolve the DSH entry point: `--dsh`, the service environment, a bundled CLI under `src/dsh-cli`, or `dsh` on PATH. */
 function dshCommand(args) {
   const finder = process.platform === 'win32' ? 'where' : 'which'
-  const candidates = [args.dsh, serviceEnv().DSH_SUPERAGENT_DSH, join(ROOT, '..', 'dsh-cli', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')]
+  const candidates = [args.dsh, serviceEnv().DSH_SUPERAGENT_DSH, join(REPO_ROOT, '..', 'dsh-cli', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')]
   for (const candidate of candidates) if (candidate && existsSync(candidate)) return candidate
   const found = spawnSync(finder, ['dsh'], { encoding: 'utf8', windowsHide: true })
   const first = (found.stdout ?? '').split(/\r?\n/).map(line => line.trim()).find(Boolean)
