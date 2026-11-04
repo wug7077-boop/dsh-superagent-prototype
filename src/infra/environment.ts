@@ -110,6 +110,12 @@ export async function writeEnvironment(deployment: Pick<Deployment, 'stateDir' |
     '[credential]', '\thelper =',
     '[credential "https://github.com"]', `\thelper = ${gitQuote(credentialHelper(github.cli))}`,
     '[url "https://github.com/"]', '\tinsteadOf = git@github.com:', '\tinsteadOf = ssh://git@github.com/',
+    // EXT (2026-11-02, machine-specific): route worker git traffic through the local proxy.
+    // The service process does not inherit the operator's proxy environment and
+    // direct github.com HTTPS is reset on this network; without this the worker
+    // cannot push. Same rationale as the stateDir Windows path patch.
+    '[http]', '\tproxy = http://127.0.0.1:7890',
+    '[https]', '\tproxy = http://127.0.0.1:7890',
     // Include Git LFS filters because the operator's global gitconfig (which usually holds them) is ignored.
     '[filter "lfs"]', '\tclean = git-lfs clean -- %f', '\tsmudge = git-lfs smudge -- %f', '\tprocess = git-lfs filter-process', '\trequired = true',
   ].join('\n') + '\n')
