@@ -58,7 +58,16 @@ cd <本仓库> && node scripts/patches.mjs apply && pnpm -C upstream build
 2. **`.artifacts` 下的包装脚本**（如 `superagent`、`bin/gh-*`）内含绝对路径，重新生成；
 3. **外部定时任务**（hourly check）持有的 `<checkout>` 路径若指向旧仓库根，改为 `<仓库>/upstream`。
 
-## 三、日常开发注意
+## 三、启用多 agent 执行（codex / Claude Code）
+
+worker 可把工单实现工作委派给外部 coding agent（官方 CLI 直连、原生登录态认证）。完整方案与端到端验证记录见 [extensions/docs/011-multi-agent-execution.md](extensions/docs/011-multi-agent-execution.md)，profile 装配模板见 [extensions/profile-patches/multi-agent.patch.yml](extensions/profile-patches/multi-agent.patch.yml)。要点：
+
+1. 安装两个提供方包到 profile（`dsh plugin --profile <p> add @deepseek-ai/dsh-subagent-codex` / `…-claude-code`，版本护栏提示时先 `allow-version … --accept-risk`）；
+2. 把模板四行追加到 profile 的 `cordis.patch.yml`（代理 env 按机器改写）；
+3. CLI 需可达外网：本机需代理时，另在 `upstream/.artifacts/service-env.json` 写进程级代理（覆盖 worker 经 bash 调 CLI 的路径），重启服务；
+4. 审计：委派调用落 `~/.codex/sessions/**/rollout-*.jsonl` 与 `~/.claude/projects/**/*.jsonl`，Orca 索引这些记录可直接核对（调用链本身不经 Orca）。
+
+## 四、日常开发注意
 
 - 补丁常驻打入：`upstream/` 工作树带着补丁是正常状态，**但提交时永远不提交这些改动**（`git add` 时排除 `upstream/`；CI 的 patch 门禁会拦截误提交）；
 - 改官方文件 = 改 `patches/` 里的补丁（`revert` → 改 `upstream/` 文件 → `git diff --directory` 重新生成该补丁 → `apply`）；

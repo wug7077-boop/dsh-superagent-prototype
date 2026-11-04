@@ -1,0 +1,33 @@
+# 多 agent 执行的 profile 装配模板（追加到 DSH profile 的 cordis.patch.yml）。
+# 使用前：dsh plugin --profile <profile> add @deepseek-ai/dsh-subagent-codex 与 @deepseek-ai/dsh-subagent-claude-code
+# （npm 版本滞后于运行时时，按提示 dsh plugin allow-version 授予精确版本豁免）。
+# 代理按机器实际情况改写；不需要代理的机器删除 env 与 NO_PROXY 段。
+# 详见 extensions/docs/011-multi-agent-execution.md 与 UPGRADE.md「启用多 agent 执行」。
+- id: subagent-codex
+  name: '@deepseek-ai/dsh-subagent-codex'
+  config:
+    env:
+      HTTP_PROXY: http://127.0.0.1:7890
+      HTTPS_PROXY: http://127.0.0.1:7890
+      NO_PROXY: 127.0.0.1,localhost
+- id: subagent-claude-code
+  name: '@deepseek-ai/dsh-subagent-claude-code'
+  config:
+    env:
+      HTTP_PROXY: http://127.0.0.1:7890
+      HTTPS_PROXY: http://127.0.0.1:7890
+      NO_PROXY: 127.0.0.1,localhost
+- id: tool-subagent-codex
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: codex
+    toolName: subagent_codex
+    enableRunInBackground: false
+    maxDepth: provider-managed
+- id: tool-subagent-claude-code
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: claude-code
+    toolName: subagent_claude_code
+    enableRunInBackground: false
+    maxDepth: provider-managed

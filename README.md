@@ -67,4 +67,5 @@ DSH 通过 pnpm `link:` 依赖消费**包根**——本仓库的包根是 `upstr
 | [patches/README.md](patches/README.md) | 补丁索引与上游化建议 |
 | [extensions/docs/009-…](extensions/docs/009-context-management-plan.md) | 上下文管理改进方案（未实施） |
 | [extensions/docs/010-…](extensions/docs/010-integration-repo-design.md) | 本仓库的设计定稿与执行记录 |
+| [extensions/docs/011-…](extensions/docs/011-multi-agent-execution.md) | 多 agent 执行（codex / Claude Code）：机制、装配、Orca 审计入口与端到端验证 |
 | [upstream/README.md](upstream/README.md) | 官方项目文档（含 `upstream/docs/` 编号系列） |
