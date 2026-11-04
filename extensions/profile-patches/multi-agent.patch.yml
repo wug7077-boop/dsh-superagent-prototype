@@ -31,3 +31,19 @@
     toolName: subagent_claude_code
     enableRunInBackground: false
     maxDepth: provider-managed
+
+# —— Orca 实时会话桥（可选）：工具行重指到 orca 提供方，委派经 Orca launch 实时可见 ——
+# 前置：profile package.json 增 "dsh-subagent-orca": "link:<本仓库>/extensions/plugins/dsh-subagent-orca"
+- id: subagent-orca-codex
+  name: 'dsh-subagent-orca'
+  config:
+    agent: codex
+    script: <本仓库绝对路径>/extensions/scripts/orca-delegate.mjs
+    timeoutMs: 600000
+- id: subagent-orca-claude
+  name: 'dsh-subagent-orca'
+  config:
+    agent: claude
+    script: <本仓库绝对路径>/extensions/scripts/orca-delegate.mjs
+    timeoutMs: 600000
+# 并把上方两个工具行的 provider 改为 orca-codex / orca-claude（直拉提供方保留作回退）
