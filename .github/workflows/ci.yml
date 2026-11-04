@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Markdown 文档门禁
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 检查全部 *.md（结构 + 内部链接）
+        run: |
+          python3 - <<'PY'
+          #!/usr/bin/env python3
+          """Markdown gate for dsh-superagent.
+          
+          Checks every *.md in the repo (excluding .git / node_modules / lib):
+            universal: valid UTF-8, no conflict markers, internal links resolve,
+                       in-page anchors resolve
+            document set (README.md, SETUP.md, CONTRIBUTING.md, docs/**): at most one
+                       H1, heading levels never jump more than one step, no trailing
+                       whitespace, no tab indentation
+          
+          External http(s)/mailto links are not checked (offline determinism).
+          Exit code 1 with a per-file error list when anything fails.
+          """
+          import re
+          import sys
+          import unicodedata
+          from pathlib import Path
+          from urllib.parse import unquote
+          
+          REPO = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
+          
+          # Formatting and structure rules apply only to curated documents; prompts/
+          # and skills/ hold prompt fragments with their own conventions.
+          DOC_SET = {"README.md", "SETUP.md", "CONTRIBUTING.md"} | {
+              str(p.relative_to(REPO)) for p in (REPO / "docs").glob("*.md")
+          } if (REPO / "docs").is_dir() else {"README.md", "SETUP.md", "CONTRIBUTING.md"}
+          
+          LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)[^)]*\)")
+          HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.*)$")
+          CONFLICT_RE = re.compile(r"^(<{7}|>{7}|={7})\s")
+          CODE_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+          
+          
+          def strip_code(text: str) -> str:
+              """Drop fenced code blocks and inline code spans."""
+              out, in_fence = [], False
+              for line in text.splitlines():
+                  if CODE_FENCE_RE.match(line):
+                      in_fence = not in_fence
+                      continue
+                  if not in_fence:
+                      out.append(line)
+              return re.sub(r"`[^`]*`", "", "\n".join(out))
+          
+          
+          def github_slug(heading: str) -> str:
+              """Approximate GitHub's anchor slug: lowercase, drop punctuation,
+              keep letters/digits/CJK/hyphen/underscore, spaces become hyphens."""
+              slug = heading.strip().lower()
+              slug = "".join(
+                  c for c in slug
+                  if c.isalnum() or c in "-_ " or unicodedata.category(c).startswith("Lo")
+              )
+              return re.sub(r"\s", "-", slug)
+          
+          
+          def anchors_of(text: str) -> set:
+              """All GitHub-style anchors in a markdown body, with -1/-2 suffixes for
+              duplicate headings."""
+              anchors, counts = set(), {}
+              for line in text.splitlines():
+                  m = HEADING_LINE_RE.match(line)
+                  if not m:
+                      continue
+                  base = github_slug(m.group(2))
+                  n = counts.get(base, 0)
+                  counts[base] = n + 1
+                  anchors.add(base if n == 0 else f"{base}-{n}")
+              return anchors
+          
+          
+          def check(repo: Path) -> int:
+              errors = []
+              files = sorted(
+                  p for p in repo.rglob("*.md")
+                  if not any(part in {".git", "node_modules", "lib"} for part in p.parts)
+              )
+              if not files:
+                  print("md gate: no markdown files found")
+                  return 1
+          
+              for path in files:
+                  rel = path.relative_to(repo).as_posix()
+                  try:
+                      text = path.read_bytes().decode("utf-8")
+                  except UnicodeDecodeError as e:
+                      errors.append(f"{rel}: not valid UTF-8 ({e})")
+                      continue
+          
+                  body = strip_code(text)
+                  is_doc = rel in DOC_SET
+          
+                  for i, line in enumerate(body.splitlines(), 1):
+                      if CONFLICT_RE.match(line):
+                          errors.append(f"{rel}:{i}: conflict marker")
+                      if is_doc and line != line.rstrip():
+                          errors.append(f"{rel}:{i}: trailing whitespace")
+                      if is_doc and line.startswith("\t"):
+                          errors.append(f"{rel}:{i}: tab-indented line")
+          
+                  # heading structure (documents only)
+                  if is_doc:
+                      h1, prev = 0, 0
+                      for i, line in enumerate(body.splitlines(), 1):
+                          m = HEADING_LINE_RE.match(line)
+                          if not m:
+                              continue
+                          level = len(m.group(1))
+                          if level == 1:
+                              h1 += 1
+                              if h1 > 1:
+                                  errors.append(f"{rel}:{i}: more than one H1")
+                          if prev and level > prev + 1:
+                              errors.append(f"{rel}:{i}: heading jumps H{prev} -> H{level}")
+                          prev = level
+          
+                  # links: internal targets must exist, anchors must resolve
+                  anchors = anchors_of(body)
+                  for m in LINK_RE.finditer(body):
+                      target = unquote(m.group(1))
+                      if target.startswith("#"):
+                          if target[1:] not in anchors:
+                              errors.append(f"{rel}: broken in-page anchor {target}")
+                          continue
+                      # "<...>" destinations are intentional placeholders, not links
+                      if not target or target.startswith(
+                          ("http:", "https:", "mailto:", "<")
+                      ):
+                          continue
+                      frag = ""
+                      if "#" in target:
+                          target, frag = target.split("#", 1)
+                      dest = (path.parent / target).resolve()
+                      if not dest.exists():
+                          errors.append(f"{rel}: broken link {target or '(empty)'}")
+                      elif dest.suffix == ".md" and frag:
+                          try:
+                              dest_anchors = anchors_of(strip_code(dest.read_text("utf-8")))
+                              if frag not in dest_anchors:
+                                  errors.append(f"{rel}: broken anchor {target}#{frag}")
+                          except UnicodeDecodeError:
+                              errors.append(f"{rel}: link target not UTF-8: {target}")
+          
+              if errors:
+                  for e in errors:
+                      print(f"md gate: {e}")
+                  print(f"md gate: {len(errors)} problem(s) across {len(files)} file(s)")
+                  return 1
+              print(f"md gate: OK ({len(files)} file(s) checked)")
+              return 0
+          
+          
+          if __name__ == "__main__":
+              sys.exit(check(REPO))
+          PY
