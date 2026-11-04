@@ -1,0 +1,33 @@
+diff --git a/cordis.patch.yml b/cordis.patch.yml
+index 0000000..1111111 100644
+--- a/cordis.patch.yml
++++ b/cordis.patch.yml
+@@ -109,6 +109,28 @@
+                   modelSelection: true
+                   modelDiscovery: true
+                   agentPreset: standard
++              # EXT (multi-agent): Host 行不进预设，须显式组合；providers 由部署层 profile 注册。
++              - id: tool-subagent-orca-claude
++                name: '@deepseek-ai/dsh-tool-subagent'
++                config:
++                  provider: orca-claude
++                  toolName: subagent_orca_claude
++                  enableRunInBackground: false
++                  maxDepth: provider-managed
++              - id: tool-subagent-orca-codex
++                name: '@deepseek-ai/dsh-tool-subagent'
++                config:
++                  provider: orca-codex
++                  toolName: subagent_orca_codex
++                  enableRunInBackground: false
++                  maxDepth: provider-managed
++              - id: tool-subagent-orca-dsh
++                name: '@deepseek-ai/dsh-tool-subagent'
++                config:
++                  provider: orca-dsh
++                  toolName: subagent_orca_dsh
++                  enableRunInBackground: false
++                  maxDepth: provider-managed
+           - id: tool-todo
+             name: '@deepseek-ai/dsh-tool-todo'
+             config:
