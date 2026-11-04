@@ -43,16 +43,21 @@ worker 预设自带的通用 `subagent` 工具固定为 `provider: spawn`（本�
 
 结论：**worker 按工单指定把实现工作委派给了不同的外部 agent**，修改精确、回复与 PR 链路完整；记录在案的 CLI 会话即 Orca 侧可核对的调用凭证。
 
-## Orca 实时会话桥（2026-11-04 增补）
+## Orca 实时会话桥（统一路线，2026-11-04 定稿）
 
-目标：委派 codex / Claude Code 时，会话**实时出现在 Orca 的会话列表**（Orca 只实时跟踪它自己 launch 的 agent；直拉 CLI 对 Orca 不可见，检索索引实测也不收录）。两条路线，均已装配：
+目标：委派外部 agent 时，会话**实时出现在 Orca 的会话树**、挂在对应工单节点下（Orca 只实时跟踪它自己 launch 的 agent；直拉 CLI 对 Orca 不可见，检索索引实测也不收录）。曾并行探索过三条路线（worker 自主调用 orchestration、仓库自研 agent-launch 桥），已**统一为 superagent-bridge 架构**，其余下线：
 
-1. **原生编排路线（worker 自主发现，e2e 验证通过）**：本机装有 Orca 的 `orchestration` 技能与 `orca-ide` CLI（PATH 可见），worker 会加载该技能并用 `orca-ide orchestration worker-start --agent codex --spec <任务>` 把外部 agent 作为 Orca 受管工人启动——天然实时出现在 Orca 会话列表，带邮箱监督。无需任何仓库改造。
-2. **工具桥路线（系统化，插件化）**：`extensions/plugins/dsh-subagent-orca`（本仓库自有插件，原生 SubagentProvider）+ `extensions/scripts/orca-delegate.mjs` 桥：`subagent_codex` / `subagent_claude_code` 工具行已重指到 `orca-codex` / `orca-claude` 提供方，委派时经 `orca agent launch` 在工单工作目录（自动开启外部 worktree 可见性）启动 agent，从 CLI 会话记录回收最终答案；Orca 不可用自动回退直拉。装配模板见 [extensions/profile-patches/multi-agent.patch.yml](../profile-patches/multi-agent.patch.yml)。
+**统一架构**：`extensions/dsh-subagent-orca`（本仓库自有插件，原生 SubagentProvider）经私有 [superagent-bridge](https://github.com/dongyeTOP/superagent-bridge)（`bridge.py`）把委派派发为 **Orca 多 agent worker**（`orchestration worker-start` 语义）：
 
-端到端记录（请求 C，issue #6）：worker 采用路线 1 委派 codex（Orca 受管工人），一处措辞修正精确完成，回复 issue 并自动创建 [PR #7](https://github.com/dongyeTOP/tunnel-view-dsh/pull/7)（+1/-1）；路线 2 的桥独立实测通过（在 Orca 中启动了实时 claude 会话并回收答案）。
+- 一条路由一个提供方：`orca-claude` / `orca-codex` / `orca-dsh`（dsh 自身也可被委派），工具行 `subagent_orca_claude` 等；
+- 每 run 在 Orca 中一个专属会话（实时可见），**工单级工作区复用**（同一工单的多次委派共享 `sa-<ticket>` 工作区，连续作业）；
+- 完成判定用 `orchestration worker-read` 的**确定性终态**（`status.worker`），不做启发式猜；结果取转录末尾 assistant 文本并附**工作区 HEAD SHA 证据**（worker 据此把提交取回工单目录再交付）；
+- 取消/超时映射 `bridge cancel`（fence 语义，超时自动 cancel 防孤儿 worker）；
+- 补丁 0005 约束 worker：委派只能走 `subagent_orca_*` 工具，禁止直调 orca CLI / orchestration / 裸 CLI——保证行为统一可审计。
 
-**陷阱**：机器级代理会截走 Orca CLI 与本机 App 的回环通信（表现为 orca 命令输出空或 `undefined`）——桥脚本已强制 `NO_PROXY=127.0.0.1,localhost,::1`；手工调用 orca CLI 时同样注意。
+**前置**：superagent-bridge 部署（`bridge.py` + `bridge.config.json` + `init`，配置基线仓库与代理）；基线仓库 `repo add` 进 Orca；claude/codex 已登录。装配模板见 [extensions/profile-patches/multi-agent.patch.yml](../profile-patches/multi-agent.patch.yml) 的 orca 段。
+
+**陷阱**：机器级代理会截走 Orca CLI 与本机 App 的回环通信（表现为输出空或字面量 `undefined`）——插件已强制大小写双份 `NO_PROXY` 含回环；手工调用 orca CLI 时同样注意。调 orca 用 `orca-ide`（Linux 裸 `orca` 是读屏器）。
 
 ## 运维注意
 

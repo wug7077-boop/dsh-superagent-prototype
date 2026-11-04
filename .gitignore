@@ -6,3 +6,5 @@ coverage/
 
 # ZCode 会话产物
 .zcode/
+# 扩展插件的源码目录不受构建产物忽略规则影响
+!extensions/**/lib/
