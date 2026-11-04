@@ -1,0 +1,19 @@
+{
+  "name": "dsh-subagent-orca",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "DSH 外部子代理提供方：经 superagent-bridge 把任务委派给 Orca 的多 agent worker（claude/codex/dsh），每 run 专属 Orca 会话，实时出现在 Orca 会话列表。",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-subagent": "*"
+  }
+}

@@ -8,6 +8,7 @@
 | [0002](0002-windows-drive-letter-paths.patch) | 配置路径模式接受盘符绝对路径（`C:/...`） | `src/deployment.ts` | 普适 Windows 支持，建议提 PR 给上游 |
 | [0003](0003-windows-hide-console-windows.patch) | 服务拉起子进程时 `windowsHide`，避免闪控制台窗口 | `src/infra/commands.ts`、`src/sources/feishu-loops.ts` | 普适 Windows 支持，建议提 PR 给上游 |
 | [0004](0004-local-git-proxy.patch) | worker git 流量走本地代理 | `src/infra/environment.ts` | ⚠️ 机器特定（硬编码 `127.0.0.1:7890`），**勿推上游**；待改造为环境变量驱动 |
+| [0005](0005-worker-delegation-via-orca-tools.patch) | worker 委派外部 agent 必须走 `subagent_codex`/`subagent_claude_code` 工具（经 Orca 实时运行），禁止直调 orca CLI / orchestration / 裸 CLI | `prompts/worker.md` | 部署特定（依赖 Orca 桥装配），勿推上游 |
 
 ## 维护规则
 
