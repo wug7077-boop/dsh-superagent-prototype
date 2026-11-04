@@ -1,0 +1,15 @@
+diff --git a/src/app/sessions.ts b/src/app/sessions.ts
+index 111..222 100644
+--- a/src/app/sessions.ts
++++ b/src/app/sessions.ts
+@@ -59,7 +59,9 @@ declare module '@deepseek-ai/cordis' {
+  * messages other Sessions, or edits documents.
+  */
+ const WORK_TOOLS = ['read', 'write', 'edit', 'read_image', 'glob', 'grep', 'bash', 'pwsh', 'job_output', 'job_list', 'job_kill', 'web_search',
+-  'web_fetch', 'skill', 'todo_write', 'subagent', 'list_subagent_models', 'send_message', 'list_agents', 'interrupt_agent']
++  'web_fetch', 'skill', 'todo_write', 'subagent', 'list_subagent_models', 'send_message', 'list_agents', 'interrupt_agent',
++  // EXT (multi-agent): Orca 桥委派工具（经 WORK_TOOLS 的 filter 兜底，未部署插件的机器不受影响）
++  'subagent_orca_claude', 'subagent_orca_codex', 'subagent_orca_dsh']
+ /** What the main Session is told when it would wait: what it waits for comes to it, and a waiting step holds back the next. */
+ const NO_WAIT = 'Reports, follow_up notices, new candidates and a background job\'s end with its output arrive by themselves as messages; '
+   + 'end the turn instead of waiting for them.'
