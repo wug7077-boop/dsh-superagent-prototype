@@ -43,6 +43,17 @@ worker 预设自带的通用 `subagent` 工具固定为 `provider: spawn`（本�
 
 结论：**worker 按工单指定把实现工作委派给了不同的外部 agent**，修改精确、回复与 PR 链路完整；记录在案的 CLI 会话即 Orca 侧可核对的调用凭证。
 
+## Orca 实时会话桥（2026-11-04 增补）
+
+目标：委派 codex / Claude Code 时，会话**实时出现在 Orca 的会话列表**（Orca 只实时跟踪它自己 launch 的 agent；直拉 CLI 对 Orca 不可见，检索索引实测也不收录）。两条路线，均已装配：
+
+1. **原生编排路线（worker 自主发现，e2e 验证通过）**：本机装有 Orca 的 `orchestration` 技能与 `orca-ide` CLI（PATH 可见），worker 会加载该技能并用 `orca-ide orchestration worker-start --agent codex --spec <任务>` 把外部 agent 作为 Orca 受管工人启动——天然实时出现在 Orca 会话列表，带邮箱监督。无需任何仓库改造。
+2. **工具桥路线（系统化，插件化）**：`extensions/plugins/dsh-subagent-orca`（本仓库自有插件，原生 SubagentProvider）+ `extensions/scripts/orca-delegate.mjs` 桥：`subagent_codex` / `subagent_claude_code` 工具行已重指到 `orca-codex` / `orca-claude` 提供方，委派时经 `orca agent launch` 在工单工作目录（自动开启外部 worktree 可见性）启动 agent，从 CLI 会话记录回收最终答案；Orca 不可用自动回退直拉。装配模板见 [extensions/profile-patches/multi-agent.patch.yml](../profile-patches/multi-agent.patch.yml)。
+
+端到端记录（请求 C，issue #6）：worker 采用路线 1 委派 codex（Orca 受管工人），一处措辞修正精确完成，回复 issue 并自动创建 [PR #7](https://github.com/dongyeTOP/tunnel-view-dsh/pull/7)（+1/-1）；路线 2 的桥独立实测通过（在 Orca 中启动了实时 claude 会话并回收答案）。
+
+**陷阱**：机器级代理会截走 Orca CLI 与本机 App 的回环通信（表现为 orca 命令输出空或 `undefined`）——桥脚本已强制 `NO_PROXY=127.0.0.1,localhost,::1`；手工调用 orca CLI 时同样注意。
+
 ## 运维注意
 
 - 代理进程（`127.0.0.1:7890`）不可用时 codex / claude 委派会失败重连（表现为 worker 长时间 job 等待），先查代理；
