@@ -40,11 +40,16 @@ jobs:
           
           REPO = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
           
-          # Formatting and structure rules apply only to curated documents; prompts/
-          # and skills/ hold prompt fragments with their own conventions.
-          DOC_SET = {"README.md", "SETUP.md", "CONTRIBUTING.md"} | {
-              str(p.relative_to(REPO)) for p in (REPO / "docs").glob("*.md")
-          } if (REPO / "docs").is_dir() else {"README.md", "SETUP.md", "CONTRIBUTING.md"}
+          # Formatting and structure rules apply only to curated documents; upstream
+          # prompts/ and skills/ hold prompt fragments with their own conventions.
+          DOC_GLOBS = {
+              "README.md", "CONTRIBUTING.md", "UPGRADE.md",
+              "upstream/README.md", "upstream/SETUP.md",
+          }
+          DOC_SET = DOC_GLOBS | {
+              str(p.relative_to(REPO)) for g in ("upstream/docs/*.md", "extensions/docs/*.md")
+              for p in REPO.glob(g)
+          }
           
           LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)[^)]*\)")
           HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.*)$")
@@ -94,7 +99,7 @@ jobs:
               errors = []
               files = sorted(
                   p for p in repo.rglob("*.md")
-                  if not any(part in {".git", "node_modules", "lib"} for part in p.parts)
+                  if not any(part in {".git", "node_modules", "lib", ".artifacts", ".zcode"} for part in p.parts)
               )
               if not files:
                   print("md gate: no markdown files found")
@@ -174,3 +179,13 @@ jobs:
           if __name__ == "__main__":
               sys.exit(check(REPO))
           PY
+  patches:
+    name: 补丁健康门禁
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 拉取官方基线并校验补丁
+        run: |
+          git remote add upstream https://github.com/deepseek-ai/dsh-superagent-prototype.git
+          git fetch upstream
+          node scripts/patches.mjs check

@@ -3,3 +3,6 @@ lib/
 .artifacts/
 .env
 coverage/
+
+# ZCode 会话产物
+.zcode/
